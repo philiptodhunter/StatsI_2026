@@ -1,0 +1,223 @@
+#####################
+# load libraries
+# set wd
+# clear global .envir
+#####################
+
+# remove objects
+rm(list=ls())
+# detach all libraries
+detachAllPackages <- function() {
+  basic.packages <- c("package:stats", "package:graphics", "package:grDevices", 
+                      "package:utils", "package:datasets", "package:methods", 
+                      "package:base")
+  package.list <- search()[ifelse(unlist(gregexpr("package:", search()))==1, 
+                                  TRUE, FALSE)]
+  package.list <- setdiff(package.list, basic.packages)
+  if (length(package.list)>0)  for (package in package.list) 
+    detach(package,  character.only=TRUE)
+}
+detachAllPackages()
+
+# load libraries
+pkgTest <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[,  "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg,  dependencies = TRUE)
+  sapply(pkg,  require,  character.only = TRUE)
+}
+
+# here is where you load any necessary packages
+# ex: stringr
+# lapply(c("stringr"),  pkgTest)
+
+lapply(c("ggplot2"),  pkgTest)
+
+#####################
+# Problem 1
+#####################
+
+#A school counselor was curious about the average of IQ of the students in her 
+#school and took a random sample of 25 students’ IQ scores. The following is 
+#the data set:
+
+y <- c(105, 69, 86, 100, 82, 111, 104, 110, 87, 108, 87, 90, 94, 113, 112, 98, 
+       80, 97, 95, 111, 114, 89, 95, 126, 98)
+
+###############################################################################
+  
+#1.1: 1. Find a 90% confidence interval for the average student IQ in the school 
+#(As a hint, you first need the mean and SD to create a CI):
+
+
+y_mean <- mean(y) #finding the mean
+y_sd <- sd(y) #finding the standard deviation
+y_length <- length(y) #finding the length
+y_se <- sd(y)/sqrt(y_length) #finding the standard error
+t90 <- qt(((1-0.9)/2), df = y_length-1,lower.tail = FALSE) #finding crit value
+
+lower90 <- y_mean - (t90 * y_se) #finding lower CI number
+upper90 <- y_mean + (t90 * y_se) #finding upper CI number
+confint90 <- c(lower90, upper90) #making CI a vector to read
+
+confint90
+#93.95993  102.92007
+
+#I have a 90% confidence that the true value of the average IQ of students at 
+#the school falls between 93.96 and 102.92.
+
+###############################################################################
+
+#1.2 Next, the school counselor was curious whether the average student IQ in 
+#her school is higher than the average IQ score (100) among all the schools in 
+#the country. Using the same sample, conduct the appropriate hypothesis test 
+#with α = 0.05.
+
+#ASSUMPTIONS
+  #Random sample, Quantitative data, Normally distributed population
+
+#HYPOTHESIS
+  #NULL Hypothesis: The average IQ at the school is less than or equal to 
+  #                 the national average of 100.
+  #Alternative Hypothesis: The average IQ at the school is greater than the
+  #                 national average of 100.
+  #           NOTE: This is a one sided test
+
+#CALCULATE TEST STATISTIC
+#test statistic = (sample statistic - hypothesized parameter)/standard error
+y_ts <- (y_mean - 100) / y_se 
+
+#CALCULATE A P-VALUE  
+  #pt((ts), df = n-1, lower.tail=F) 
+  #One sided test doesn't need abs() or * 2
+y_pval <- pt((y_ts), df = y_length-1, lower.tail=FALSE)
+y_pval
+
+#CONCLUSIONS
+  #α = 0.05
+  #p = 0.72 which is greater than 0.05
+  #We fail to reject the NULL Hypothesis because the p-value is greater than
+  #0.05. The sample does not give evidence that the schools average IQ is
+  #higher than 100.
+
+#####################
+# Problem 2
+#####################
+
+#Researchers are curious about what affects the amount of money communities 
+#spend on addressing homelessness. The following variables constitute our data 
+#set about social welfare expenditures in the USA.
+
+  #State 50 states in US
+  #Y per capita expenditure on shelters/housing assistance in state
+  #X1 per capita personal income in state
+  #X2 Number of residents per 100,000 that are ”financially insecure” in state
+  #X3 Number of people per thousand residing in urban areas in state
+  #Region 1=Northeast, 2= North Central, 3= South, 4=West
+
+          #Explore the expenditure data set and import data into R.
+
+expenditure <- read.table("https://raw.githubusercontent.com/ASDS-TCD/StatsI_2026/main/datasets/expenditure.txt", header=T)
+
+head(expenditure)
+str(expenditure)
+summary(expenditure)
+
+#2.1
+#Please plot the relationships among Y, X1, X2, and X3 ? What are the 
+#correlations among them (you just need to describe the graph and the 
+#relationships among them)?
+
+pdf("PS01_PT_YXXXplot.pdf", width = 7, height = 5)
+#using the pairs function to make a graph with multiple overlaying variables.
+pairs(~ Y + X1 + X2 + X3, data = expenditure,  
+      pch = 19,     #plotting with dots       
+      main = "Relationships", #giving a title
+      lower.panel = NULL)   #removing redundant graphs
+
+dev.off()
+
+cor(expenditure[, c("Y", "X1", "X2", "X3")]) #getting the correlating numbers
+
+  # Per capita expenditure on shelters/housing assistance in state (Y) displays
+  # a moderate positive correlation with all three variables of X. These X values
+  # being: per capita personal income in state (X1), Number of residents per 
+  # 100,000 that are ”financially insecure” in state (X2), and Number of people 
+  # per thousand residing in urban areas in state (X3). The relationship between
+  # Y and X1 has the most clear moderately positive correlation, while both the 
+  # relationships between Y and X2 and Y and X3 have a moderately positive
+  # correlation with Y and X3 being slightly more strongly correlated. The 
+  # correlations between X2 and X1 as well as X2 and X3 both have a weak positive
+  # correlation. The strongest correlation of all the plots is between X3 and X1
+  # which shows a moderate positive correlation. There is one clear outlier 
+  # that may be pulling the relationship away from a stronger correlation.
+
+#2.2
+#Please plot the relationship between Y and Region? On average, which region 
+#has the highest per capita expenditure on housing assistance?
+#factoring so that I can label my X axis bars and make a boxplot
+expenditure$Region_fac  <- factor(expenditure$Region,
+  labels = c("Northeast","North central",              
+             "South","West"))                          
+#making a boxplot with my regions and Y
+boxplotvar <- ggplot(expenditure, aes(Region_fac, Y)) + 
+  geom_boxplot() +                                    
+  labs(title = "Housing Assistance Spending per Region", #main title 
+       x = "Region", y = "expenditure per capita")  #giving axis labels
+
+ggsave("PS01_PT_boxplot.pdf", plot = boxplotvar, width = 7, height = 4)
+
+#Finding the means so that I can compare the averages, as the boxplot shows the medians:
+Northeast_mean <- mean(expenditure$Y[expenditure$Region == 1])
+North_central_mean <- mean(expenditure$Y[expenditure$Region == 2]) 
+South_mean <- mean(expenditure$Y[expenditure$Region == 3]) 
+West_mean <- mean(expenditure$Y[expenditure$Region == 4]) 
+Region_means <- c(Northeast=Northeast_mean, North_central=North_central_mean, South=South_mean, West=West_mean) #making a matrix to read
+Region_means
+#On average the West had the highest per capita expenditure on housing assistance.
+
+#2.3
+#Please plot the relationship between Y and X1 ? Describe this graph and the 
+#relationship. 
+
+pdf("PS01_PT_YX1.pdf", width = 7, height = 5)
+
+plot(expenditure$X1, expenditure$Y, #plotting X1 and Y
+     main = "Income vs Expenditure", #giving a title
+     xlab = "Per capita personal income", #labelling X axis
+     ylab = "Per capita expenditure on housing assistance") #labelling Y axis
+
+fit <-  lm(expenditure$Y ~ expenditure$X1)    # added a linear regression line 
+abline(fit, col = "red", lwd = 2)             
+
+dev.off()
+
+cor(expenditure$Y, expenditure$X1) #getting the correlating number
+
+  # The graph shows that the per capita expenditure on shelters/housing 
+  # assistance in state has a moderate positive correlation with per capita 
+  # personal income in state. The points on the graph appear to begin landing
+  # further away from their predicted value more frequently. A linear regression line was added to better visualize this.
+
+#2.3.5
+#Reproduce the above graph including one more variable Region and 
+#display different regions with different types of symbols and colors.
+
+pdf("PS01_PT_YX1_colors.pdf", width = 7, height = 5)
+
+plot(expenditure$X1, expenditure$Y, # same code as before
+     main = "Income vs Expenditure per Region",  # changed main title to reflect
+     xlab = "Per capita personal income",        # the addition of Regions
+     ylab = "Per capita expenditure on housing assistance", 
+     col = expenditure$Region,       # change the color of each point per region
+     pch = expenditure$Region)       # change the symbol of each point per region
+legend("topleft",         # added a legend to understand colors and symbols
+       legend = c("Northeast","North central","South","West"),
+       col = 1:4,    # assigned the correct colors to each region in legend
+       pch = 1:4)    # assigned the correct symbol to each region in legend
+# same linear regression line but I changed the color as one of the regions is now red:          
+fit <-  lm(expenditure$Y ~ expenditure$X1)    
+abline(fit, col = "orange", lwd = 2)          
+                                              
+dev.off()
+
